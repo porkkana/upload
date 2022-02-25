@@ -48,6 +48,6 @@ class FileTemplate extends AbstractTextFormatterTemplate
      */
     public function bbcode(): string
     {
-        return '[upl-file uuid={IDENTIFIER} size={SIMPLETEXT2}]{SIMPLETEXT1}[/upl-file]';
+        return '[upl-file uuid={IDENTIFIER} size={SIMPLETEXT2}]{TEXT}[/upl-file]';
     }
 }
