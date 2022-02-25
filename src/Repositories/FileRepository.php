@@ -30,7 +30,7 @@ use Psr\Http\Message\UploadedFileInterface;
 use Ramsey\Uuid\Uuid;
 use SoftCreatR\MimeDetector\MimeDetector;
 use Symfony\Component\HttpFoundation\File\UploadedFile as Upload;
-
+use FoF\Upload\Helpers\FilenameSanitizer;
 class FileRepository
 {
     /**
@@ -126,7 +126,6 @@ class FileRepository
          */
         $tempFile = @tempnam($this->path.'/tmp', 'fof.upload.');
         $upload->moveTo($tempFile);
-
         $file = new Upload(
             $tempFile,
             $upload->getClientFilename(),
@@ -237,8 +236,11 @@ class FileRepository
     {
         $name = pathinfo($upload->getClientOriginalName(), PATHINFO_FILENAME);
 
-        $slug = trim(Str::slug($name));
-
+	$sanitizer = new FilenameSanitizer($name.chr(0));
+	$sanitizer->stripPhp()
+		->stripRiskyCharacters()
+    		->stripIllegalFilesystemCharacters();
+	$slug = $sanitizer->getFilename();
         return sprintf(
             '%s.%s',
             empty($slug) ? $uuid : $slug,
