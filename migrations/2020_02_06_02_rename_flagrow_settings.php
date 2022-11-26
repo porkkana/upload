@@ -10,15 +10,11 @@
  * file that was distributed with this source code.
  */
 
-use Flarum\Settings\SettingsRepositoryInterface;
 use Illuminate\Database\Schema\Builder;
 
 return [
     'up' => function (Builder $schema) {
-        /**
-         * @var $settings SettingsRepositoryInterface
-         */
-        $settings = resolve(SettingsRepositoryInterface::class);
+        $db = $schema->getConnection();
 
         foreach ([
             'maxFileSize',
@@ -42,12 +38,9 @@ return [
             'qiniuSecret',
             'qiniuBucket',
         ] as $key) {
-            $value = $settings->get('flagrow.upload.'.$key);
-
-            if (!is_null($value)) {
-                $settings->set('fof-upload.'.$key, $value);
-                $settings->delete('flagrow.upload.'.$key);
-            }
+            $db->table('settings')
+                ->where('key', 'flagrow.upload.'.$key)
+                ->update(['key' => 'fof-upload.'.$key]);
         }
     },
     'down' => function (Builder $schema) {

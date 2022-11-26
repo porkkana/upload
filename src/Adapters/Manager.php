@@ -17,6 +17,7 @@ use Flarum\Foundation\Paths;
 use Flarum\Foundation\ValidationException;
 use Flarum\Settings\SettingsRepositoryInterface;
 use FoF\Upload\Adapters;
+use FoF\Upload\Contracts\UploadAdapter;
 use FoF\Upload\Events\Adapter\Collecting;
 use FoF\Upload\Events\Adapter\Instantiate;
 use FoF\Upload\Helpers\Util;
@@ -71,7 +72,7 @@ class Manager
         return $adapters;
     }
 
-    public function instantiate(string $adapter)
+    public function instantiate(string $adapter): UploadAdapter
     {
         $configured = $this->adapters()
             // Drops adapters that cannot be instantiated due to missing packages.
@@ -106,18 +107,25 @@ class Manager
             return null;
         }
 
+        $s3Config = [
+            'region'                  => empty($this->settings->get('fof-upload.awsS3Region')) ? null : $this->settings->get('fof-upload.awsS3Region'),
+            'version'                 => 'latest',
+            'endpoint'                => empty($this->settings->get('fof-upload.awsS3Endpoint')) ? null : $this->settings->get('fof-upload.awsS3Endpoint'),
+            'use_path_style_endpoint' => empty($this->settings->get('fof-upload.awsS3UsePathStyleEndpoint')) ? null : (bool) $this->settings->get('fof-upload.awsS3UsePathStyleEndpoint'),
+        ];
+
+        // Only explicitly provide credentials if available.
+        // Otherwise S3Client will attempt to use instance profile.
+        if ($this->settings->get('fof-upload.awsS3Key') && $this->settings->get('fof-upload.awsS3Secret')) {
+            $s3Config['credentials'] = [
+                'key'    => $this->settings->get('fof-upload.awsS3Key'),
+                'secret' => $this->settings->get('fof-upload.awsS3Secret'),
+            ];
+        }
+
         return new Adapters\AwsS3(
             new AwsS3Adapter(
-                new S3Client([
-                    'credentials' => [
-                        'key'    => $this->settings->get('fof-upload.awsS3Key'),
-                        'secret' => $this->settings->get('fof-upload.awsS3Secret'),
-                    ],
-                    'region'                  => empty($this->settings->get('fof-upload.awsS3Region')) ? null : $this->settings->get('fof-upload.awsS3Region'),
-                    'version'                 => 'latest',
-                    'endpoint'                => empty($this->settings->get('fof-upload.awsS3Endpoint')) ? null : $this->settings->get('fof-upload.awsS3Endpoint'),
-                    'use_path_style_endpoint' => empty($this->settings->get('fof-upload.awsS3UsePathStyleEndpoint')) ? null : (bool) $this->settings->get('fof-upload.awsS3UsePathStyleEndpoint'),
-                ]),
+                new S3Client($s3Config),
                 $this->settings->get('fof-upload.awsS3Bucket')
             )
         );

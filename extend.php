@@ -16,8 +16,11 @@ use Flarum\Api\Serializer\CurrentUserSerializer;
 use Flarum\Api\Serializer\ForumSerializer;
 use Flarum\Api\Serializer\UserSerializer;
 use Flarum\Extend;
+use Flarum\Post\Event\Posted;
+use Flarum\Post\Event\Revised;
 use Flarum\Settings\Event\Deserializing;
 use FoF\Upload\Events\File\WillBeUploaded;
+use FoF\Upload\Extend\SvgSanitizer;
 
 return [
     (new Extend\Routes('api'))
@@ -25,7 +28,10 @@ return [
         ->post('/fof/upload', 'fof-upload.upload', Api\Controllers\UploadController::class)
         ->post('/fof/watermark', 'fof-upload.watermark', Api\Controllers\WatermarkUploadController::class)
         ->get('/fof/download/{uuid}/{post}/{csrf}', 'fof-upload.download', Api\Controllers\DownloadController::class)
+        ->post('/fof/upload/inspect-mime', 'fof-upload.inspect-mime', Api\Controllers\InspectMimeController::class)
         ->patch('/fof/upload/hide', 'fof-upload.hide', Api\Controllers\HideUploadFromMediaManagerController::class),
+
+    (new Extend\Console())->command(Console\MapFilesCommand::class),
 
     (new Extend\Csrf())->exemptRoute('fof-upload.download'),
 
@@ -50,12 +56,15 @@ return [
 
     (new Extend\Event())
         ->listen(Deserializing::class, Listeners\AddAvailableOptionsInAdmin::class)
+        ->listen(Posted::class, Listeners\LinkImageToPostOnSave::class)
+        ->listen(Revised::class, Listeners\LinkImageToPostOnSave::class)
         ->listen(WillBeUploaded::class, Listeners\AddImageProcessor::class),
 
     (new Extend\ServiceProvider())
         ->register(Providers\UtilProvider::class)
         ->register(Providers\StorageServiceProvider::class)
-        ->register(Providers\DownloadProvider::class),
+        ->register(Providers\DownloadProvider::class)
+        ->register(Providers\SanitizerProvider::class),
 
     (new Extend\View())
         ->namespace('fof-upload.templates', __DIR__.'/resources/templates'),
@@ -68,4 +77,7 @@ return [
 
     (new Extend\Formatter())
         ->render(Formatter\TextPreview\FormatTextPreview::class),
+
+    (new SvgSanitizer())
+        ->allowTag('animate'),
 ];
